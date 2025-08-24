@@ -17,7 +17,9 @@ energy:
 13. 数据湖开发
 14. 变量管理
 15. ml, dl, llm, ai 集成
-16. pipline coding mode
+16. pipline coding mode => toolz 管道模式
+17. 算子构造
+18. 高级设计算子
 17. 处理大数据集方案, hdfs, oss, s3
 16. 系统事件
 17. 诊断信息
