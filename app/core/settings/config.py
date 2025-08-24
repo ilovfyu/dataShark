@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     api_doc: str = ""
 
 
+    log_level: str = "INFO"
+    log_rotation: str = "10 MB"
+    log_retention: str = "7 days"
+    log_sqlecho: bool = True
+
 
 
 

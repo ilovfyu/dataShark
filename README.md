@@ -2,7 +2,7 @@
 
 
 energy:
-1. 用户权限管理
+1. 用户权限管理  
 2. livy restapi  
 3. 资源管理
 4. sql, coding模式
@@ -23,12 +23,13 @@ energy:
 17. 诊断信息
 18. 日志探查
 19. 部署方案
-20. 量子计算引擎
 21. spark加速方案 todo
 22. k8s动态扩缩资源, 水平和垂直扩展
 23. 资源队列
 24. udf管理
 25. graphx图计算
+26. 元数据管理
+27. 审计日志
 
 
 
@@ -41,6 +42,18 @@ service_: nacos / etcd
 load 需要放在平台外侧, 只做request的分发工作
 以单体pod部署模式
 
+
+
+
+workspace 级别,  energy 级别 
+rbac 权限控制
+secret-key  aksk   openapi集成
+dingding, feishu集成
+
+
+
+日志: logging
+orm: sqlalchemy
 
 
 
@@ -131,7 +144,7 @@ project/
 │   └── conftest.py               # 测试配置
 ├── alembic/                      # 数据库迁移
 │   ├── versions/
-│   ├── env.py
+│   ├── env.py  
 │   └── script.py.mako
 ├── docker/                       # Docker 配置
 │   ├── app/
