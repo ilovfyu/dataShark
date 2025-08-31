@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     log_sqlecho: bool = True
 
 
+
+    db_username: str = "root"
+    db_password: str = "niosle#123"
+    db_host: str = "127.0.0.1"
+    db_port: int = 3306
+    db_name: str = "data_shark"
+
+
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8",
         case_sensitive=False,

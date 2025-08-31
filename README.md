@@ -1,9 +1,9 @@
 ## DATA_SHARK 一个高效的SPARK工作开发平台
 
 
-energy:
+能力:
 1. 用户权限管理  
-2. livy restapi  
+2. livy restapi  , kyuubi
 3. 资源管理
 4. sql, coding模式
 5. 流批处理
@@ -19,7 +19,6 @@ energy:
 15. ml, dl, llm, ai 集成
 16. pipline coding mode => toolz 管道模式
 17. 算子构造
-18. 高级设计算子
 17. 处理大数据集方案, hdfs, oss, s3
 16. 系统事件
 17. 诊断信息
@@ -32,6 +31,8 @@ energy:
 25. graphx图计算
 26. 元数据管理
 27. 审计日志
+28. 字典管理
+29. profile
 
 
 
@@ -47,7 +48,7 @@ load 需要放在平台外侧, 只做request的分发工作
 
 
 
-workspace 级别,  energy 级别 
+workspace 级别
 rbac 权限控制
 secret-key  aksk   openapi集成
 dingding, feishu集成
@@ -168,3 +169,5 @@ project/
 ├── .env.spark
 └── README.md
 ```
+
+错误码设计
