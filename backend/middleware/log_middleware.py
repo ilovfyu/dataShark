@@ -3,9 +3,7 @@ import uuid
 from typing import Callable, Optional
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import StreamingResponse
 from starlette.types import ASGIApp
-import json
 from backend.core.logs.loguru_config import Logger
 
 logger = Logger.get_logger()
@@ -17,7 +15,6 @@ class LoguruMiddleware(BaseHTTPMiddleware):
         skip_routes: Optional[list] = None,
         skip_keywords: Optional[list] = None
     ):
-
         super().__init__(app)
         self.skip_routes = skip_routes or []
         self.skip_keywords = skip_keywords or []
@@ -27,9 +24,8 @@ class LoguruMiddleware(BaseHTTPMiddleware):
         if self._should_skip_log(request):
             return await call_next(request)
 
-        # 生成请求ID
-        request_id = str(uuid.uuid4())
-
+        # 从request.state获取request_id
+        request_id = getattr(request.state, "request_id", self._generate_fallback_id())
         # 记录请求开始时间
         start_time = time.time()
 
@@ -43,9 +39,6 @@ class LoguruMiddleware(BaseHTTPMiddleware):
             # 记录响应信息
             process_time = time.time() - start_time
             await self._log_response(request, response, process_time, request_id)
-
-            # 添加请求ID到响应头
-            response.headers["X-Request-ID"] = request_id
 
             return response
 
@@ -121,3 +114,6 @@ class LoguruMiddleware(BaseHTTPMiddleware):
             f"Error: {str(exception)} Duration: {process_time:.3f}s"
         )
 
+    def _generate_fallback_id(self) -> str:
+        """生成备用request_id"""
+        return str(uuid.uuid4())

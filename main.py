@@ -1,4 +1,4 @@
-from backend.core.application.enter import create_app
+from backend.core.apps.enter import create_app
 from backend.core.settings.config import get_settings
 
 confi = get_settings()

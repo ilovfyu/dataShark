@@ -1,7 +1,6 @@
 from typing import AsyncGenerator, Optional, List, Type
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, DeclarativeMeta
-from sqlalchemy.pool import QueuePool
 from backend.core.logs.loguru_config import Logger
 
 # 配置日志
@@ -45,7 +44,7 @@ class AsyncDatabase:
 
             logger.info("Database engine initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize database engine: {e}")
+            logger.error(f"Failed to initialize db engine: {e}")
             raise
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
