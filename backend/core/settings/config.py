@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     db_port: int = 3306
     db_name: str = "data_shark"
 
+    secret_key: str = "9E8D9056-B1A5-4632-B417-6FEEC82A4CEC"
+
 
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8",
