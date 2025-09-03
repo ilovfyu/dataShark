@@ -1,9 +1,9 @@
 ## DATA_SHARK 一个高效的SPARK工作开发平台
 
 
-energy:
-1. 用户权限管理
-2. livy restapi  
+能力:
+1. 用户权限管理  
+2. livy restapi  , kyuubi
 3. 资源管理
 4. sql, coding模式
 5. 流批处理
@@ -17,18 +17,22 @@ energy:
 13. 数据湖开发
 14. 变量管理
 15. ml, dl, llm, ai 集成
-16. pipline coding mode
+16. pipline coding mode => toolz 管道模式
+17. 算子构造
 17. 处理大数据集方案, hdfs, oss, s3
 16. 系统事件
 17. 诊断信息
 18. 日志探查
 19. 部署方案
-20. 量子计算引擎
 21. spark加速方案 todo
 22. k8s动态扩缩资源, 水平和垂直扩展
 23. 资源队列
 24. udf管理
 25. graphx图计算
+26. 元数据管理
+27. 审计日志
+28. 字典管理
+29. profile
 
 
 
@@ -41,6 +45,18 @@ service_: nacos / etcd
 load 需要放在平台外侧, 只做request的分发工作
 以单体pod部署模式
 
+
+
+
+workspace 级别
+rbac 权限控制
+secret-key  aksk   openapi集成
+dingding, feishu集成
+
+
+
+日志: logging
+orm: sqlalchemy
 
 
 
@@ -131,7 +147,7 @@ project/
 │   └── conftest.py               # 测试配置
 ├── alembic/                      # 数据库迁移
 │   ├── versions/
-│   ├── env.py
+│   ├── env.py  
 │   └── script.py.mako
 ├── docker/                       # Docker 配置
 │   ├── app/
@@ -153,3 +169,5 @@ project/
 ├── .env.spark
 └── README.md
 ```
+
+错误码设计

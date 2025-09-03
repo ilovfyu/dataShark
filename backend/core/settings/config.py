@@ -13,10 +13,26 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 4106
     api_root_path: str = "/data_shark/v1/api"
-    api_doc: str = ""
+    api_doc: str = f"{api_root_path}/docs"
+
+
+    log_dir: str = "logs"
+    log_level: str = "INFO"
+    log_rotation: str = "10 MB"
+    log_retention: str = "7 days"
+    log_serializer: bool = True
+    log_compress: bool = False
+    log_sqlecho: bool = True
 
 
 
+    db_username: str = "root"
+    db_password: str = "niosle#123"
+    db_host: str = "127.0.0.1"
+    db_port: int = 3306
+    db_name: str = "data_shark"
+
+    secret_key: str = "9E8D9056-B1A5-4632-B417-6FEEC82A4CEC"
 
 
     model_config = SettingsConfigDict(
@@ -25,11 +41,6 @@ class Settings(BaseSettings):
         extra='ignore',
         env_file=".env"
     )
-
-
-
-
-
 
 
 @lru_cache
