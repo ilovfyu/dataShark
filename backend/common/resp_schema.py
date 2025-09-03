@@ -19,21 +19,23 @@ class UnifiedResponse(BaseModel, Generic[T]):
     request_id: Optional[str] = None
     timestamp: Optional[str] = None
 
-class ResponseUtil:
+
+
+
+class RespCall:
 
     @staticmethod
     def success(
         data: Any = None,
         message: str = "Success",
         code: int = 200,
-        request: Request = None
+        request: Request = None,
     ) -> dict:
         from datetime import datetime
 
         request_id = None
         if request:
             request_id = getattr(request.state, 'request_id', None)
-
         response = UnifiedResponse(
             code=code,
             status=ResponseStatus.SUCCESS,
@@ -56,7 +58,6 @@ class ResponseUtil:
         request_id = None
         if request:
             request_id = getattr(request.state, 'request_id', None)
-
         response = UnifiedResponse(
             code=code,
             status=ResponseStatus.FAIL,
@@ -65,7 +66,6 @@ class ResponseUtil:
             request_id=request_id,
             timestamp=datetime.now().isoformat()
         )
-
         return response.model_dump()
 
     @staticmethod

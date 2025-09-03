@@ -1,30 +1,53 @@
-from sqlalchemy import Column, String, Text, Boolean, BigInteger
+import uuid
+from sqlalchemy import Column, String, Text, Boolean, BigInteger, DateTime, Enum, Integer
+from backend.constants.model_constant import UserStatusEnum, RoleStatusEnum, RoleTypeEnum, PermissionTypeEnum, \
+    PermissionActionEnum, PermissionStatusEnum
 from backend.models.base import IBaseModel
 
 
 class Role(IBaseModel):
     __tablename__ = "sys_role"
     name = Column(String(50), unique=True, index=True, nullable=False)
-    description = Column(Text)
-    is_active = Column(Boolean, default=True)
+    description = Column(Text, nullable=True)
+    status = Column(Enum(RoleStatusEnum), default=RoleStatusEnum.ACTIVE)
+    role_type = Column(Enum(RoleTypeEnum), default=RoleTypeEnum.CUSTOM)
 
 
 
 class Permission(IBaseModel):
     __tablename__ = "sys_permission"
-    resource = Column(String(255), index=True)
-    action = Column(String(20), index=True)
+    code = Column(String(50), unique=True, index=True, nullable=False, comment="基于resource,action生成 user::create")
+    name = Column(String(50), nullable=True, comment="")
+    resource = Column(String(50), nullable=False, comment="eg: user")
+    action = Column(Enum(PermissionActionEnum), default=PermissionActionEnum.CREATE, nullable=False)
+    description = Column(Text, nullable=True)
+    permission_type = Column(Enum(PermissionTypeEnum), default=PermissionTypeEnum.API)
+    level = Column(Integer, default=1)
+    status = Column(Enum(PermissionStatusEnum), default=PermissionStatusEnum.ACTIVE)
+    api_endpoint = Column(String(255))
+    http_method = Column(String(10))
+
+    def __repr__(self):
+        return f"<Permission(id={self.id}, code='{self.code}', name='{self.name}')>"
+
 
 
 
 class User(IBaseModel):
     __tablename__ = "sys_user"
-
+    guid = Column(String(36), default=lambda: str(uuid.uuid4()), nullable=False)
     username = Column(String(50), unique=True, index=True, nullable=False)
+    nickname = Column(String(50), nullable=True)
+    avatar_url = Column(String(255), nullable=True)
     hashed_password = Column(String(255), nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-    is_active = Column(Boolean, default=True)
+    email = Column(String(100), unique=True, index=True, nullable=True)
+    phone = Column(String(20), unique=True, nullable=True)
+    status = Column(Enum(UserStatusEnum), default=UserStatusEnum.ACTIVE)
     is_superuser = Column(Boolean, default=False)
+    last_login_ip = Column(String(50), nullable=True)
+    last_login_time = Column(DateTime(timezone=True), nullable=True)
+    mfa_enabled = Column(Boolean, default=False)
+
 
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}')>"

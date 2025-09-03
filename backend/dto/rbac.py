@@ -1,64 +1,60 @@
+from pydantic import Field, BaseModel
+
+from backend.dto.base import BaseSchema, BasePageSchema
 from typing import Optional, List
-from backend.dto.base import BaseSchema
 from datetime import datetime
+from backend.constants.model_constant import (
+    UserStatusEnum,
+    RoleStatusEnum,
+    RoleTypeEnum,
+    PermissionTypeEnum,
+    PermissionActionEnum,
+    PermissionStatusEnum
+)
 
-# Permission DTOs
-class PermissionBase(BaseSchema):
-    name: str
-    description: Optional[str] = None
-    resource: str
-    action: str
 
-class PermissionCreate(PermissionBase):
+
+class Token(BaseSchema):
+    access_token: str = Field(..., description="access token")
+    token_type: str = Field("bearer", description="token type")
+
+
+
+class TokenData(BaseSchema):
+    user_id: Optional[int] = Field(None, description="user id")
+
+
+
+class UserCreate(BaseSchema):
+    username: str = Field(..., description="username")
+    password: str = Field(..., description="password")
+
+
+class UserCreateResp(BaseSchema):
+    user_id: int = Field(..., description="user id")
+
+
+
+class UserUpdate(BaseSchema):
     pass
 
-class PermissionUpdate(BaseSchema):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    resource: Optional[str] = None
-    action: Optional[str] = None
 
-class PermissionResponse(PermissionBase):
-    id: int
-    created_at: datetime
-    updated_at: datetime
 
-# Role DTOs
-class RoleBase(BaseSchema):
-    name: str
-    description: Optional[str] = None
+class UserBase(BaseSchema):
+    pass
 
-class RoleCreate(RoleBase):
-    permission_ids: Optional[List[int]] = None
 
-class RoleUpdate(BaseSchema):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
-    permission_ids: Optional[List[int]] = None
 
-class RoleResponse(RoleBase):
-    id: int
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
+class UserDelete(BaseSchema):
+    pass
 
-# UserRole DTOs
-class UserRoleCreate(BaseSchema):
-    user_id: int
-    role_id: int
 
-class UserRoleResponse(UserRoleCreate):
-    id: int
-    created_at: datetime
-    updated_at: datetime
+class UserFindByPage(BasePageSchema):
+    pass
 
-# RolePermission DTOs
-class RolePermissionCreate(BaseSchema):
-    role_id: int
-    permission_id: int
 
-class RolePermissionResponse(RolePermissionCreate):
-    id: int
-    created_at: datetime
-    updated_at: datetime
+
+class UserFindById(BaseSchema):
+    pass
+
+
