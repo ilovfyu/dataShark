@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 
 class BaseSchema(BaseModel):
@@ -13,14 +13,20 @@ class BaseSchema(BaseModel):
 
 
 
-class BasePageSchema(BaseSchema):
+class BasePageReq(BaseSchema):
     page: int = 1
     page_size: int = 10
 
 
 
-class BasePageResponse(BaseSchema):
+class BasePageResp(BaseSchema):
     total: int
     data: Any
+
+
+
+class NoneDataUnionResp(BaseSchema):
+    pong: str = Field(default="OK", description="union response if not exist data.")
+
 
 

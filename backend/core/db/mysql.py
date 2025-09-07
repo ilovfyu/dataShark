@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base, DeclarativeMeta
 from backend.core.logs.loguru_config import Logger
 
+
 # 配置日志
 logger = Logger.get_logger()
 
@@ -12,7 +13,7 @@ class AsyncDatabase:
     def __init__(self):
         self._engine = None
         self._session_factory = None
-
+        self._models = []
     def init_app(
         self,
         database_url: str,
@@ -46,6 +47,13 @@ class AsyncDatabase:
         except Exception as e:
             logger.error(f"Failed to initialize db engine: {e}")
             raise
+
+
+    def register_model(self, model: Type[DeclarativeMeta]):
+        "注册模型"
+        if model not in self._models:
+            self._models.append(model)
+            logger.debug(f"Register model: {model.__name__}")
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         if not self._session_factory:
@@ -95,27 +103,34 @@ class AsyncDatabase:
         return self._session_factory
 
     async def create_tables(self, models: Optional[List[Type[DeclarativeMeta]]] = None):
+        """创建指定模型的表"""
         if not self._engine:
             raise RuntimeError("Database not initialized. Call init_app first.")
 
+        # 如果没有指定模型，则使用已注册的模型
+        if models is None:
+            models = self._models
+
+        if not models:
+            logger.warning("No models to create tables for")
+            return
+
         async with self._engine.begin() as conn:
-            if models:
-                for model in models:
-                    if hasattr(model, '__table__'):
-                        await conn.run_sync(model.__table__.create, checkfirst=True)
-                        logger.info(f"Created table for model: {model.__name__}")
-            else:
-                await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-                logger.info("Created all tables")
+            for model in models:
+                if hasattr(model, '__table__'):
+                    await conn.run_sync(model.__table__.create, checkfirst=True)
+                    logger.info(f"Created table for model: {model.__name__}")
 
 
     async def create_tables_safe(self):
         if not self._engine:
             raise RuntimeError("Database not initialized. Call init_app first.")
-
-        async with self._engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-            logger.info("Created tables safely")
+        if self._models:
+            async with self._engine.begin() as conn:
+                for model in self._models:
+                    if hasattr(model, '__table__'):
+                        await conn.run_sync(model.__table__.create, checkfirst=True)
+                        logger.info(f"Created table for registered model: {model.__name__}")
 
 
 

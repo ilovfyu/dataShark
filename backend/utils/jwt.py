@@ -7,7 +7,7 @@ from backend.core.settings.config import get_settings
 from backend.core.logs.loguru_config import Logger
 
 
-settings = get_settings()
+confi = get_settings()
 logger = Logger.get_logger()
 
 
@@ -30,12 +30,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=15)
     encode.update({"exp": expire})
-    jwt_token = jwt.encode(encode, settings.secret_key, algorithm=ALGORITHM)
+    jwt_token = jwt.encode(encode, confi.secret_key, algorithm=ALGORITHM)
     return jwt_token
 
 def decode_access_token(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, confi.secret_key, algorithms=[ALGORITHM])
         return payload
     except JWTError:
         logger.error("decode access token failed.")

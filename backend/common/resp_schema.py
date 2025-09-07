@@ -14,7 +14,7 @@ class ResponseStatus(str, Enum):
 class UnifiedResponse(BaseModel, Generic[T]):
     code: int
     status: ResponseStatus
-    message: str
+    message: Optional[str] = None
     data: Optional[T] = None
     request_id: Optional[str] = None
     timestamp: Optional[str] = None
@@ -27,19 +27,16 @@ class RespCall:
     @staticmethod
     def success(
         data: Any = None,
-        message: str = "Success",
         code: int = 200,
         request: Request = None,
     ) -> dict:
         from datetime import datetime
-
         request_id = None
         if request:
             request_id = getattr(request.state, 'request_id', None)
         response = UnifiedResponse(
             code=code,
             status=ResponseStatus.SUCCESS,
-            message=message,
             data=data,
             request_id=request_id,
             timestamp=datetime.now().isoformat()
@@ -54,7 +51,6 @@ class RespCall:
         request: Request = None
     ) -> dict:
         from datetime import datetime
-
         request_id = None
         if request:
             request_id = getattr(request.state, 'request_id', None)

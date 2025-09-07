@@ -55,7 +55,6 @@ class User(IBaseModel):
     def has_permission(self, permissions: list, resource: str, action: str) -> bool:
         if self.is_superuser:
             return True
-
         for permission in permissions:
             if permission.resource == resource and permission.action == action:
                 return True
@@ -65,8 +64,8 @@ class User(IBaseModel):
 class UserRole(IBaseModel):
     __tablename__ = 'sys_user_role'
 
-    user_id = Column(BigInteger, index=True, nullable=False)
-    role_id = Column(BigInteger, index=True, nullable=False)
+    user_id = Column(String(36), index=True, nullable=False)
+    role_id = Column(BigInteger, index=True, nullable=False, default=5)
 
     __table_args__ = (
     )

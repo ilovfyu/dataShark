@@ -1,13 +1,11 @@
 from enum import IntEnum
 
 
-
 class ErrorCode(IntEnum):
 
     SUCCESS = 200
     CREATED = 201
     ACCEPTED = 202
-
 
     BAD_REQUEST = 400
     UNAUTHORIZED = 401
@@ -23,6 +21,17 @@ class ErrorCode(IntEnum):
 
 
 
+
+
+
 class BussinessCode(IntEnum):
 
-    pass
+    BUSSINESS_ERROR = 100000   # 通用业务错误
+
+    USER_EXIST = 100001     # 用户已存在
+    USER_NOT_EXIST = 100002  # 用户不存在
+
+    NOT_ALLOW_PARAM = 100003  # 非法的param
+    VERIFY_ERROR = 100004
+    STATUS_ERROR = 100005
+    FORBIDDEN_ERROR = 100006

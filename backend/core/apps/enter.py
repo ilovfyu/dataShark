@@ -1,12 +1,14 @@
 import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from backend.api.router import main_apirouter
 from backend.core.logs.loguru_config import Logger
 from backend.core.settings.config import get_settings
 from backend.core.db.mysql import db
 from backend.middleware.log_middleware import LoguruMiddleware
 from backend.middleware.request_id_middleware import RequestIDMiddleware
 from backend.common.exception_handler import configure_exception_handlers
+import backend.models
 
 confi = get_settings()
 logx = Logger.get_logger()
@@ -19,7 +21,6 @@ async def register_init(app: FastAPI):
     db.init_app(
         database_url=f"mysql+aiomysql://{confi.db_username}:{confi.db_password}@{confi.db_host}:{confi.db_port}/{confi.db_name}",
         echo=True if confi.debug else False,
-
     )
     try:
         await db.create_tables_safe()
@@ -35,16 +36,7 @@ async def register_init(app: FastAPI):
 
 
 def configure_router(app: FastAPI):
-    @app.get("/health")
-    async def health_check():
-        return {"status": "healthy"}
-
-    @app.get("/users/{user_id}")
-    async def get_user(user_id: int):
-        raise Exception("User not found")
-        # return {"user_id": user_id, "name": "John Doe"}
-
-
+    app.include_router(main_apirouter, prefix=confi.api_root_path)
 
 
 
@@ -66,7 +58,6 @@ def create_app() -> FastAPI:
         version=confi.version,
         description=confi.description,
         lifespan=register_init,
-        # docs_url=confi.api_doc,
     )
     configure_router(app)
     configure_middleware(app)

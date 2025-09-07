@@ -13,7 +13,6 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 4106
     api_root_path: str = "/data_shark/v1/api"
-    api_doc: str = f"{api_root_path}/docs"
 
 
     log_dir: str = "logs"
@@ -33,6 +32,7 @@ class Settings(BaseSettings):
     db_name: str = "data_shark"
 
     secret_key: str = "9E8D9056-B1A5-4632-B417-6FEEC82A4CEC"
+    access_token_expire_days: int = 3
 
 
     model_config = SettingsConfigDict(
