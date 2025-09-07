@@ -40,3 +40,19 @@ def decode_access_token(token: str) -> Optional[dict]:
     except JWTError:
         logger.error("decode access token failed.")
         return None
+
+
+
+token_blacklist = set()
+def is_token_blacklisted(token: str) -> bool:
+    try:
+        # 解码令牌以验证其有效性
+        payload = jwt.decode(token, confi.secret_key, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        # 只有未过期的令牌才加入黑名单
+        if exp and datetime.utcfromtimestamp(exp) > datetime.utcnow():
+            token_blacklist.add(token)
+            return True
+        return False
+    except JWTError:
+        return False

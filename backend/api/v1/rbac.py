@@ -7,6 +7,7 @@ from backend.core.db.mysql import get_db
 from backend.decorators.auth_decorator import require_auth
 from backend.dto.rbac import (
     UserCreateReq, UserDeleteReq, UserUpdateReq, UserQueryListReq, LoginReq, RoleListReq, QueryUserRoleListReq,
+    UpdateUserRoleReq,
 )
 from backend.services.rbac_service import rbac_service
 from backend.core.logs.loguru_config import Logger
@@ -96,8 +97,16 @@ async def query_user_list(
 
 @rbac_router.post("/login", summary="用户登录")
 async def Login(request: Request, req: LoginReq, db: AsyncSession = Depends(get_db)):
+    # 获取客户端IP地址
+    client_ip = request.client.host if request.client else None
+
+    # 如果通过代理服务器，尝试获取真实IP
+    if "x-forwarded-for" in request.headers:
+        client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
+    elif "x-real-ip" in request.headers:
+        client_ip = request.headers["x-real-ip"]
     try:
-        result = await rbac_service.login_user(req, db)
+        result = await rbac_service.login_user(req, db, client_ip)
         return RespCall.success(
             data=result,
             request=request,
@@ -162,6 +171,19 @@ async def get_user_role_list(
     try:
         req = QueryUserRoleListReq(page=page, page_size=page_size, guid=guid)
         result = await rbac_service.query_user_role_list(req, db)
+        return RespCall.success(
+            data=result,
+            request=request,
+        )
+    except Exception as err:
+        raise err
+
+
+
+@rbac_router.post("/user-roles", summary="更新用户角色")
+async def update_user_roles(request: Request, req: UpdateUserRoleReq, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await rbac_service.update_user_role(req, db)
         return RespCall.success(
             data=result,
             request=request,

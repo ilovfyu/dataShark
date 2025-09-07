@@ -1,12 +1,12 @@
-from datetime import timedelta
-from sqlalchemy import select, delete, func
+from datetime import timedelta, datetime
+from sqlalchemy import select, delete, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.common.errors import ErrorCode, BussinessCode
 from backend.common.exception_handler import BusinessException
 from backend.constants.model_constant import UserStatusEnum
 from backend.dto.rbac import (
     UserCreateReq, UserCreateResp, UserDeleteReq, UserUpdateReq, UserQueryListReq, LoginReq, LoginResp, RoleListReq,
-    QueryUserRoleListReq, QueryUserRoleListResp, QueryRoleModel
+    QueryUserRoleListReq, QueryUserRoleListResp, QueryRoleModel, UpdateUserRoleReq
 )
 from backend.models.rbac import User, UserRole, Role
 from backend.utils.jwt import get_password_hash, verify_password, create_access_token
@@ -201,7 +201,7 @@ class RBACService:
                 code=BussinessCode.BUSSINESS_ERROR,
             )
 
-    async def login_user(self, req: LoginReq, db: AsyncSession):
+    async def login_user(self, req: LoginReq, db: AsyncSession, client_ip: str):
         try:
             stmt = select(User).where(User.username == req.username)
             result = await db.execute(stmt)
@@ -225,6 +225,12 @@ class RBACService:
                 },
                 expires_delta=refresh_token_expires,
             )
+            ## 更新latest ip,  last login time
+            update_stmt = update(User).where(User.guid == user.guid).values(
+                last_login_ip=client_ip,
+                last_login_time=datetime.now(),
+            )
+            await db.execute(update_stmt)
             return LoginResp(
                 access_token=token,
             )
@@ -330,8 +336,43 @@ class RBACService:
             )
 
 
-
     async def update_user_role(self, req: UpdateUserRoleReq, db: AsyncSession):
+        try:
+            user_stmt = select(User).where(User.guid == req.guid)
+            user_result = await db.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+            if not user:
+                raise BusinessException(
+                    message=f"用户不存在",
+                    status_code=ErrorCode.BAD_REQUEST,
+                    code=BussinessCode.USER_NOT_EXIST,
+                )
+            delete_stmt = delete(UserRole).where(UserRole.user_id == req.guid)
+            await db.execute(delete_stmt)
 
+            if req.role_ids:
+                for role_id in req.role_ids:
+                    user_role = UserRole(user_id=req.guid, role_id=role_id)
+                    db.add(user_role)
+            await db.commit()
+            return NoneDataUnionResp()
+        except Exception as e:
+            raise BusinessException(
+                message=f"更新用户角色失败, {str(e)}",
+                status_code=ErrorCode.INTERNAL_ERROR,
+                code=BussinessCode.BUSSINESS_ERROR,
+            )
+
+
+    # async def logout(self, guid: str):
+    #     try:
+    #         from backend.utils.jwt import is_token_blacklisted
+    #         is_token_blacklisted()
+    #     except Exception as e:
+    #         raise BusinessException(
+    #             message=f"登出失败, {str(e)}",
+    #             status_code=ErrorCode.INTERNAL_ERROR,
+    #             code=BussinessCode.BUSSINESS_ERROR,
+    #         )
 
 rbac_service = RBACService()

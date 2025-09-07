@@ -107,7 +107,8 @@ class QueryUserRoleListResp(BasePageResp):
 
 
 class UpdateUserRoleReq(BaseSchema):
-    pass
+    guid: str = Field(..., description="用户guid")
+    role_ids: List[int] = Field(..., description="角色id列表")
 
 
 

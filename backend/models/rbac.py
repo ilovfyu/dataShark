@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, Boolean, BigInteger, DateTime, Enum, Integer
+from sqlalchemy import Column, String, Text, Boolean, BigInteger, DateTime, Enum, Integer, event
 from backend.constants.model_constant import UserStatusEnum, RoleStatusEnum, RoleTypeEnum, PermissionTypeEnum, \
     PermissionActionEnum, PermissionStatusEnum
 from backend.models.base import IBaseModel
@@ -30,6 +30,11 @@ class Permission(IBaseModel):
     def __repr__(self):
         return f"<Permission(id={self.id}, code='{self.code}', name='{self.name}')>"
 
+
+# 添加事件监听器，自动为超级用户分配所有权限
+@event.listens_for(Permission, 'after_insert')
+async def assign_permission_to_superuser(mapper, connection, target):
+    pass
 
 
 
