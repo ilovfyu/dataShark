@@ -11,7 +11,7 @@
 7. duckdb对接
 8. 插件机制
 9. session模式
-10. 运行环境
+10. 运行环境 - oss, 镜像
 11. ray对接, dask对接
 12. airflow 任务编排, 发布
 13. 数据湖开发
@@ -19,7 +19,7 @@
 15. ml, dl, llm, ai 集成
 16. pipline coding mode => toolz 管道模式
 17. 算子构造
-17. 处理大数据集方案, hdfs, oss, s3
+17. 处理大数据集方案, hdfs, oss, s3, minio
 16. 系统事件
 17. 诊断信息
 18. 日志探查
@@ -33,8 +33,9 @@
 27. 审计日志
 28. 字典管理
 29. profile
-
-
+30. 版本管理 
+31. 弹性伸缩
+32. catalog 数据目录  latest todo
 
   
 strcuture: litestar async api

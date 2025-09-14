@@ -2,9 +2,11 @@ from typing import AsyncGenerator, Optional, List, Type
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base, DeclarativeMeta
 from backend.core.logs.loguru_config import Logger
+from backend.core.settings.config import get_settings
 
 # 配置日志
 logger = Logger.get_logger()
+confi = get_settings()
 
 Base = declarative_base()
 
@@ -12,7 +14,7 @@ class AsyncDatabase:
     def __init__(self):
         self._engine = None
         self._session_factory = None
-
+        self._models = []
     def init_app(
         self,
         database_url: str,
@@ -46,6 +48,13 @@ class AsyncDatabase:
         except Exception as e:
             logger.error(f"Failed to initialize db engine: {e}")
             raise
+
+
+    def register_model(self, model: Type[DeclarativeMeta]):
+        "注册模型"
+        if model not in self._models:
+            self._models.append(model)
+            logger.debug(f"Register model: {model.__name__}")
 
     async def get_session(self) -> AsyncGenerator[AsyncSession, None]:
         if not self._session_factory:
@@ -95,27 +104,34 @@ class AsyncDatabase:
         return self._session_factory
 
     async def create_tables(self, models: Optional[List[Type[DeclarativeMeta]]] = None):
+        """创建指定模型的表"""
         if not self._engine:
             raise RuntimeError("Database not initialized. Call init_app first.")
 
+        # 如果没有指定模型，则使用已注册的模型
+        if models is None:
+            models = self._models
+
+        if not models:
+            logger.warning("No models to create tables for")
+            return
+
         async with self._engine.begin() as conn:
-            if models:
-                for model in models:
-                    if hasattr(model, '__table__'):
-                        await conn.run_sync(model.__table__.create, checkfirst=True)
-                        logger.info(f"Created table for model: {model.__name__}")
-            else:
-                await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-                logger.info("Created all tables")
+            for model in models:
+                if hasattr(model, '__table__'):
+                    await conn.run_sync(model.__table__.create, checkfirst=True)
+                    logger.info(f"Created table for model: {model.__name__}")
 
 
     async def create_tables_safe(self):
         if not self._engine:
             raise RuntimeError("Database not initialized. Call init_app first.")
-
-        async with self._engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all, checkfirst=True)
-            logger.info("Created tables safely")
+        if self._models:
+            async with self._engine.begin() as conn:
+                for model in self._models:
+                    if hasattr(model, '__table__'):
+                        await conn.run_sync(model.__table__.create, checkfirst=True)
+                        logger.info(f"Created table for registered model: {model.__name__}")
 
 
 
@@ -136,3 +152,99 @@ async def get_db_readonly() -> AsyncGenerator[AsyncSession, None]:
     """
     async for session in db.get_session_no_commit():
         yield session
+
+
+class WorkspaceDatabaseManager:
+    """工作空间数据库管理器"""
+
+    def get_engine(self, workspace_id: str, database_url: str):
+        """
+        获取工作空间数据库引擎
+        :param workspace_id: 工作空间ID
+        :param database_url: 数据库URL
+        :return: 数据库引擎
+        """
+        if workspace_id not in self._engines:
+            try:
+                engine = create_async_engine(
+                    database_url,
+                    echo=False,
+                    pool_size=10,
+                    max_overflow=20,
+                    pool_pre_ping=True,
+                    pool_recycle=3600
+                )
+                self._engines[workspace_id] = engine
+                logger.info(f"创建工作空间 {workspace_id} 的数据库引擎成功")
+            except Exception as e:
+                logger.error(f"创建工作空间 {workspace_id} 的数据库引擎失败: {e}")
+                raise
+
+        return self._engines[workspace_id]
+
+    def get_session_factory(self, workspace_id: str, database_url: str):
+        """
+        获取工作空间会话工厂
+        :param workspace_id: 工作空间ID
+        :param database_url: 数据库URL
+        :return: 会话工厂
+        """
+        if workspace_id not in self._session_factories:
+            engine = self.get_engine(workspace_id, database_url)
+            session_factory = async_sessionmaker(
+                bind=engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+                autocommit=False,
+                autoflush=False
+            )
+            self._session_factories[workspace_id] = session_factory
+            logger.info(f"创建工作空间 {workspace_id} 的会话工厂成功")
+
+        return self._session_factories[workspace_id]
+
+    async def get_session(self, workspace_id: str, database_url: str) -> AsyncSession:
+        """
+        获取工作空间数据库会话
+        :param workspace_id: 工作空间ID
+        :param database_url: 数据库URL
+        :return: 数据库会话
+        """
+        session_factory = self.get_session_factory(workspace_id, database_url)
+        async with session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+
+    async def close_engine(self, workspace_id: str):
+        """
+        关闭工作空间数据库引擎
+        :param workspace_id: 工作空间ID
+        """
+        if workspace_id in self._engines:
+            engine = self._engines.pop(workspace_id)
+            await engine.dispose()
+            logger.info(f"关闭工作空间 {workspace_id} 的数据库引擎成功")
+
+    async def close_all_engines(self):
+        """关闭所有工作空间数据库引擎"""
+        for workspace_id in list(self._engines.keys()):
+            await self.close_engine(workspace_id)
+        logger.info("关闭所有工作空间数据库引擎成功")
+
+
+
+workspace_db_manager = WorkspaceDatabaseManager()
+
+
+
+
+
+
+
+
