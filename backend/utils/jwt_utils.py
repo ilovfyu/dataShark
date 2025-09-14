@@ -1,4 +1,4 @@
-# backend/core/security/jwt.py
+# backend/core/security/jwt_utils.py
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import jwt, JWTError

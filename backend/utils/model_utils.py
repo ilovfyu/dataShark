@@ -6,6 +6,8 @@ from sqlalchemy import select
 from datetime import datetime
 from enum import Enum as PyEnum
 
+from backend.constants.model_constant import PermissionActionEnum, PermissionResourceEnum
+
 T = TypeVar('T', bound=BaseModel)
 M = TypeVar('M', bound=DeclarativeMeta)
 
@@ -317,3 +319,13 @@ class ModelConverter:
                 setattr(model_instance, field, value)
 
         return model_instance
+
+
+
+
+
+class GeneratorUtils:
+
+    @staticmethod
+    def generate_permission_code(resource: PermissionResourceEnum, action: PermissionActionEnum) -> str:
+        return f"{resource.value}:{action.value}"

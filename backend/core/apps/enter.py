@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from backend.api.router import main_apirouter
+from backend.core.db.redis import redis_client
 from backend.core.logs.loguru_config import Logger
 from backend.core.settings.config import get_settings
 from backend.core.db.mysql import db
@@ -27,6 +28,13 @@ async def register_init(app: FastAPI):
         logx.info("✅ Database tables created successfully")
     except Exception as e:
         logx.error(f"❌ Failed to create db tables: {e}")
+        raise
+
+    try:
+        await redis_client.init_app()
+        logx.info("✅ Database tables created successfully")
+    except Exception as e:
+        logx.info(f"❌ Failed to create db tables: {e}")
         raise
     await asyncio.sleep(1)
     yield

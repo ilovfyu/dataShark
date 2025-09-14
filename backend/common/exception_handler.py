@@ -7,16 +7,18 @@ from backend.common.errors import ErrorCode, BussinessCode
 from backend.core.logs.loguru_config import Logger
 from backend.common.resp_schema import ErrorResponse
 from fastapi.exceptions import RequestValidationError
+from pydantic_core import ValidationError as PydanticCoreValidationError
 
-logger = Logger.get_logger()
+
+logx = Logger.get_logger()
 
 
 class BusinessException(Exception):
     def __init__(
             self,
             message: str,
-            code: int = ErrorCode.BAD_REQUEST,
-            status_code: int = status.HTTP_400_BAD_REQUEST,
+            code: int = BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+            status_code: int = ErrorCode.BAD_REQUEST,
             detail: Optional[Any] = None
     ):
         self.message = message
@@ -30,8 +32,8 @@ class ValidationException(BusinessException):
     def __init__(self, message: str = "数据验证失败", detail: Optional[Any] = None):
         super().__init__(
             message=message,
-            code=ErrorCode.VALIDATION_ERROR,
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=BussinessCode.VERIFY_PARAM_ERROR.code,
+            status_code=ErrorCode.BAD_ENTITY,
             detail=detail
         )
 
@@ -41,8 +43,8 @@ class ForbiddenException(BusinessException):
     def __init__(self, message: str = "权限不足"):
         super().__init__(
             message=message,
-            code=BussinessCode.FORBIDDEN_ERROR,
-            status_code=ErrorCode.FORBIDDEN
+            code=BussinessCode.FORBIDDEN_ERROR.code,
+            status_code=ErrorCode.FORBIDDEN,
         )
 
 
@@ -55,7 +57,7 @@ class ExceptionHandler:
         @app.exception_handler(BusinessException)
         async def business_exception_handler(request: Request, exc: BusinessException):
             request_id = getattr(request.state, "request_id", None)
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"BusinessException: {exc.message} "
                 f"(Code: {exc.code}, Status: {exc.status_code}) "
                 f"Request: {request.method} {request.url.path} "
@@ -83,18 +85,18 @@ class ExceptionHandler:
                     "type": error["type"]
                 })
 
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"RequestValidationError: {exc.errors()} "
                 f"Request: {request.method} {request.url.path} "
             )
             response = ErrorResponse(
-                code=ErrorCode.VALIDATION_ERROR,
+                code=BussinessCode.VERIFY_PARAM_ERROR.code,
                 message="请求参数验证失败",
                 detail=errors,
                 request_id=request_id
             )
             return JSONResponse(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=ErrorCode.BAD_ENTITY,
                 content=response.to_dict()
             )
 
@@ -109,26 +111,26 @@ class ExceptionHandler:
                     "type": error["type"]
                 })
 
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"RequestValidationError: {exc.errors()} "
                 f"Request: {request.method} {request.url.path} "
                 f"Request ID: {request_id}"
             )
             response = ErrorResponse(
-                code=ErrorCode.VALIDATION_ERROR,
+                code=BussinessCode.VERIFY_PARAM_ERROR.code,
                 message=exc.message,
                 detail=errors,
                 request_id=request_id
             )
             return JSONResponse(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=ErrorCode.BAD_ENTITY,
                 content=response.to_dict()
             )
 
         @app.exception_handler(ForbiddenException)
         async def forbidden_exception_handler(request: Request, exc: ForbiddenException):
             request_id = getattr(request.state, "request_id", None)
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"ForbiddenException: {exc.message} "
                 f"(Code: {exc.code}, Status: {exc.status_code}) "
                 f"Request: {request.method} {request.url.path} "
@@ -150,7 +152,7 @@ class ExceptionHandler:
             else:
                 message = getattr(exc, "detail", "请求处理失败")
 
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"HTTPException: {exc.status_code} - {message} "
                 f"Request: {request.method} {request.url.path} "
                 f"Request ID: {request_id}"
@@ -169,7 +171,7 @@ class ExceptionHandler:
         @app.exception_handler(Exception)
         async def general_exception_handler(request: Request, exc: Exception):
             request_id = getattr(request.state, "request_id", None)
-            logger.bind(request_id=request_id).error(
+            logx.bind(request_id=request_id).error(
                 f"UnexpectedException: {str(exc)} "
                 f"Type: {type(exc).__name__} "
                 f"Request: {request.method} {request.url.path} "
@@ -180,13 +182,43 @@ class ExceptionHandler:
             detail = str(exc) if debug else None
 
             response = ErrorResponse(
-                code=ErrorCode.INTERNAL_ERROR,
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
                 message="服务器内部错误",
                 detail=detail,
                 request_id=request_id
             )
             return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+                content=response.to_dict()
+            )
+
+        @app.exception_handler(PydanticCoreValidationError)
+        async def pydantic_core_validation_error_handler(request: Request, exc: PydanticCoreValidationError):
+            """
+            处理 Pydantic Core ValidationError 异常
+            """
+            request_id = getattr(request.state, "request_id", None)
+            errors = []
+            for error in exc.errors():
+                errors.append({
+                    "field": ".".join(str(loc) for loc in error["loc"]),
+                    "message": error["msg"],
+                    "type": error["type"]
+                })
+
+            logx.bind(request_id=request_id).error(
+                f"PydanticCoreValidationError: {exc.errors()} "
+                f"Request: {request.method} {request.url.path} "
+                f"Request ID: {request_id}"
+            )
+            response = ErrorResponse(
+                code=BussinessCode.VERIFY_PARAM_ERROR.code,
+                message="数据验证失败",
+                detail=errors,
+                request_id=request_id
+            )
+            return JSONResponse(
+                status_code=ErrorCode.BAD_ENTITY,
                 content=response.to_dict()
             )
 
@@ -194,4 +226,4 @@ class ExceptionHandler:
 def configure_exception_handlers(app: FastAPI):
     """设置异常处理器"""
     ExceptionHandler.add_exception_handlers(app)
-    logger.info("Exception handlers registered successfully")
+    logx.info("Exception handlers registered successfully")

@@ -13,13 +13,13 @@ class BaseSchema(BaseModel):
 
 
 
-class BasePageReq(BaseSchema):
+class BasePageReqDto(BaseSchema):
     page: int = 1
     page_size: int = 10
 
 
 
-class BasePageResp(BaseSchema):
+class BasePageRespDto(BaseSchema):
     total: int
     data: Any
 

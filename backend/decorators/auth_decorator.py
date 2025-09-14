@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.core.db.mysql import get_db
 from backend.models.rbac import User
-from backend.utils.jwt import decode_access_token
+from backend.utils.jwt_utils import decode_access_token
 from backend.core.logs.loguru_config import Logger
 
 logger = Logger.get_logger()

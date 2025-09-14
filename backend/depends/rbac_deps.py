@@ -1,12 +1,12 @@
-from typing import Optional
+from typing import Optional, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.common.errors import ErrorCode
 from backend.core.db.mysql import get_db
-from backend.models.rbac import User
-from backend.utils.jwt import decode_access_token
+from backend.models.rbac import User, Role, Permission, UserRole, RolePermission
+from backend.utils.jwt_utils import decode_access_token
 from backend.core.logs.loguru_config import Logger
 
 logger = Logger.get_logger()
@@ -38,7 +38,6 @@ async def get_current_user(
     except Exception:
         raise credentials_exception
 
-
     try:
         stmt = select(User).where(User.guid == user_id)
         result = await db.execute(stmt)
@@ -69,7 +68,6 @@ async def get_current_active_user(
             detail="用户账户已被禁用"
         )
     return current_user
-
 
 async def get_current_superuser(
     current_user: User = Depends(get_current_user)
@@ -122,3 +120,154 @@ async def get_optional_user(
     except Exception as e:
         logger.error(f"获取可选用户失败: {e}")
         return None
+
+async def require_permission(
+    resource: str,
+    action: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    权限检查依赖项
+    :param resource: 资源名称
+    :param action: 操作名称
+    :param current_user: 当前用户
+    :param db: 数据库会话
+    :return: 如果有权限则返回True，否则抛出异常
+    """
+    # 超级用户检查
+    if current_user.is_superuser:
+        return True
+
+    try:
+        # 查询用户的角色
+        user_role_stmt = select(UserRole.role_id).where(UserRole.user_id == current_user.guid)
+        user_role_result = await db.execute(user_role_stmt)
+        role_ids = [row[0] for row in user_role_result.all()]
+
+        if not role_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少 {resource}:{action} 权限"
+            )
+
+        # 查询角色对应的权限ID
+        role_perm_stmt = select(RolePermission.permission_id).where(
+            RolePermission.role_id.in_(role_ids)
+        )
+        role_perm_result = await db.execute(role_perm_stmt)
+        permission_ids = [row[0] for row in role_perm_result.all()]
+
+        if not permission_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少 {resource}:{action} 权限"
+            )
+
+        # 查询具体权限
+        perm_stmt = select(Permission).where(
+            Permission.id.in_(permission_ids),
+            Permission.resource == resource,
+            Permission.action == action,
+            Permission.status == "active"
+        )
+        perm_result = await db.execute(perm_stmt)
+        permission = perm_result.scalar_one_or_none()
+
+        if permission is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"缺少 {resource}:{action} 权限"
+            )
+
+        return True
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"权限检查失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="权限检查服务暂时不可用"
+        )
+
+async def require_permissions(
+    permissions: List[tuple],  # [(resource, action), ...]
+    require_all: bool = True,  # True: 需要所有权限, False: 满足任一权限即可
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    多权限检查依赖项
+    :param permissions: 权限列表 [(resource, action), ...]
+    :param require_all: 是否需要所有权限
+    :param current_user: 当前用户
+    :param db: 数据库会话
+    :return: 如果有权限则返回True，否则抛出异常
+    """
+    # 超级用户检查
+    if current_user.is_superuser:
+        return True
+
+    try:
+        # 查询用户的角色
+        user_role_stmt = select(UserRole.role_id).where(UserRole.user_id == current_user.guid)
+        user_role_result = await db.execute(user_role_stmt)
+        role_ids = [row[0] for row in user_role_result.all()]
+
+        if not role_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="缺少必要的权限"
+            )
+
+        # 查询角色对应的权限ID
+        role_perm_stmt = select(RolePermission.permission_id).where(
+            RolePermission.role_id.in_(role_ids)
+        )
+        role_perm_result = await db.execute(role_perm_stmt)
+        permission_ids = [row[0] for row in role_perm_result.all()]
+
+        if not permission_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="缺少必要的权限"
+            )
+
+        satisfied_count = 0
+        for resource, action in permissions:
+            # 查询具体权限
+            perm_stmt = select(Permission).where(
+                Permission.id.in_(permission_ids),
+                Permission.resource == resource,
+                Permission.action == action,
+                Permission.status == "active"
+            )
+            perm_result = await db.execute(perm_stmt)
+            permission = perm_result.scalar_one_or_none()
+
+            if permission is not None:
+                satisfied_count += 1
+                if not require_all:  # 满足任一权限即可
+                    return True
+
+        if require_all and satisfied_count != len(permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="缺少必要的权限"
+            )
+
+        if not require_all and satisfied_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="缺少任一所需权限"
+            )
+
+        return True
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"多权限检查失败: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="权限检查服务暂时不可用"
+        )

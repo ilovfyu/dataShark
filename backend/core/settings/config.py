@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -33,6 +35,15 @@ class Settings(BaseSettings):
 
     secret_key: str = "9E8D9056-B1A5-4632-B417-6FEEC82A4CEC"
     access_token_expire_days: int = 3
+
+
+    redis_host: str = "127.0.0.1"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+
+
+    space_prefix: str = "space_session:"
 
 
     model_config = SettingsConfigDict(
