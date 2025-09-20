@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from backend.common.errors import ErrorCode
-from backend.core.db.mysql import get_db
+from backend.core.framework.mysql import get_db
 from backend.models.rbac import User, Role, Permission, UserRole, RolePermission
 from backend.utils.jwt_utils import decode_access_token
 from backend.core.logs.loguru_config import Logger

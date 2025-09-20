@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import Column, String, Text, Boolean, BigInteger, DateTime, Enum, Integer, event, UniqueConstraint
 from backend.constants.model_constant import UserStatusEnum, RoleStatusEnum, RoleTypeEnum, PermissionTypeEnum, \
     PermissionActionEnum, PermissionStatusEnum, HttpMethodEnum, PermissionResourceEnum
-from backend.core.db.mysql import db
+from backend.core.framework.mysql import db
 from backend.models.base import IBaseModel
 class Role(IBaseModel):
     __tablename__ = "sys_role"
@@ -152,7 +152,7 @@ class PermissionGroup(IBaseModel):
     __tablename__ = "sys_permission_group"
 
     name = Column(String(100), unique=True, index=True, nullable=False, comment="权限组名称")
-    code = Column(String(50), unique=True, index=True, nullable=False, comment="权限组编码")
+    code = Column(String(36), unique=True, index=True, default=lambda: str(uuid.uuid4()),  nullable=False, comment="权限组编码")
     description = Column(Text, nullable=True, comment="权限组描述")
     status = Column(Enum(PermissionStatusEnum), default=PermissionStatusEnum.ACTIVE, comment="状态")
     sort_order = Column(Integer, default=0, comment="排序")
@@ -170,11 +170,31 @@ class GroupPermissions(IBaseModel):
     """
     __tablename__ = "sys_group_permission"
 
-    group_id = Column(BigInteger, index=True, nullable=False, comment="权限组ID")
+    group_code = Column(String(36), index=True, nullable=False, comment="权限组code")
     permission_id = Column(BigInteger, index=True, nullable=False, comment="权限ID")
 
     __table_args__ = (
-        UniqueConstraint('group_id', 'permission_id', name='uq_group_permission'),
+        UniqueConstraint('group_code', 'permission_id', name='uq_group_permission'),
     )
     def __repr__(self):
         return f"<GroupPermission(group_id={self.group_id}, permission_id={self.permission_id})>"
+
+
+
+
+
+class RolePermissionGroup(IBaseModel):
+    """
+    角色与权限组关联模型
+    """
+    __tablename__ = 'sys_role_permission_group'
+
+    role_id = Column(BigInteger, index=True, nullable=False)
+    group_code = Column(BigInteger, index=True, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('role_id', 'group_code', name='uq_role_permission_group'),
+    )
+    def __repr__(self):
+        return f"<RolePermissionGroup(role_id={self.role_id}, group_code={self.group_code})>"
+

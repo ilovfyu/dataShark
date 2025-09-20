@@ -1,4 +1,4 @@
-from backend.core.db.mysql import db
+from backend.core.framework.mysql import db
 from backend.models.rbac import (
     User,
     UserRole,
@@ -6,7 +6,8 @@ from backend.models.rbac import (
     RolePermission,
     Permission,
     PermissionGroup,
-    GroupPermissions
+    GroupPermissions,
+    RolePermissionGroup
 )
 from backend.models.workspace import (
     Workspace,
@@ -14,15 +15,11 @@ from backend.models.workspace import (
 )
 
 MODELS = [
-    User,
-    UserRole,
-    Role,
-    RolePermission,
-    Permission,
-    Workspace,
-    UserWorkspace,
+    User, UserRole, Role, RolePermission,
+    Permission, Workspace, UserWorkspace,
     GroupPermissions,
-    PermissionGroup
+    PermissionGroup,
+    RolePermissionGroup
 ]
 
 

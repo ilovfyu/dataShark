@@ -154,12 +154,39 @@ async def get_db_readonly() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+# backend/core/framework/mysql.py
+
+import asyncio
+import json
+from typing import Dict, AsyncGenerator, Optional, Any
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeMeta
+from sqlalchemy.exc import SQLAlchemyError
+from backend.core.logs.loguru_config import Logger
+
+logger = Logger.get_logger()
+
+
+
+
+
+
+
+
+
 class WorkspaceDatabaseManager:
     """工作空间数据库管理器"""
+
+    def __init__(self):
+        """初始化工作空间数据库管理器"""
+        self._engines: Dict[str, Any] = {}
+        self._session_factories: Dict[str, Any] = {}
+        self._lock = asyncio.Lock()  # 用于线程安全
 
     def get_engine(self, workspace_id: str, database_url: str):
         """
         获取工作空间数据库引擎
+
         :param workspace_id: 工作空间ID
         :param database_url: 数据库URL
         :return: 数据库引擎
@@ -172,7 +199,8 @@ class WorkspaceDatabaseManager:
                     pool_size=10,
                     max_overflow=20,
                     pool_pre_ping=True,
-                    pool_recycle=3600
+                    pool_recycle=3600,
+                    pool_timeout=30
                 )
                 self._engines[workspace_id] = engine
                 logger.info(f"创建工作空间 {workspace_id} 的数据库引擎成功")
@@ -185,6 +213,7 @@ class WorkspaceDatabaseManager:
     def get_session_factory(self, workspace_id: str, database_url: str):
         """
         获取工作空间会话工厂
+
         :param workspace_id: 工作空间ID
         :param database_url: 数据库URL
         :return: 会话工厂
@@ -203,20 +232,56 @@ class WorkspaceDatabaseManager:
 
         return self._session_factories[workspace_id]
 
-    async def get_session(self, workspace_id: str, database_url: str) -> AsyncSession:
+    async def get_session(self, workspace_id: str, database_url: str) -> AsyncGenerator[AsyncSession, None]:
         """
         获取工作空间数据库会话
+
         :param workspace_id: 工作空间ID
         :param database_url: 数据库URL
         :return: 数据库会话
         """
-        session_factory = self.get_session_factory(workspace_id, database_url)
+        # 使用锁确保线程安全
+        async with self._lock:
+            session_factory = self.get_session_factory(workspace_id, database_url)
+
         async with session_factory() as session:
             try:
                 yield session
                 await session.commit()
-            except Exception:
+            except SQLAlchemyError as e:
                 await session.rollback()
+                logger.error(f"工作空间 {workspace_id} 数据库会话执行失败: {e}")
+                raise
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"工作空间 {workspace_id} 数据库会话发生未知错误: {e}")
+                raise
+            finally:
+                await session.close()
+
+    async def get_session_no_commit(self, workspace_id: str, database_url: str) -> AsyncGenerator[AsyncSession, None]:
+        """
+        获取工作空间数据库只读会话（不自动提交）
+
+        :param workspace_id: 工作空间ID
+        :param database_url: 数据库URL
+        :return: 数据库会话
+        """
+        # 使用锁确保线程安全
+        async with self._lock:
+            session_factory = self.get_session_factory(workspace_id, database_url)
+
+        async with session_factory() as session:
+            try:
+                yield session
+                # 只读会话不提交
+            except SQLAlchemyError as e:
+                await session.rollback()
+                logger.error(f"工作空间 {workspace_id} 只读会话执行失败: {e}")
+                raise
+            except Exception as e:
+                await session.rollback()
+                logger.error(f"工作空间 {workspace_id} 只读会话发生未知错误: {e}")
                 raise
             finally:
                 await session.close()
@@ -224,27 +289,74 @@ class WorkspaceDatabaseManager:
     async def close_engine(self, workspace_id: str):
         """
         关闭工作空间数据库引擎
+
         :param workspace_id: 工作空间ID
         """
-        if workspace_id in self._engines:
-            engine = self._engines.pop(workspace_id)
-            await engine.dispose()
-            logger.info(f"关闭工作空间 {workspace_id} 的数据库引擎成功")
+        async with self._lock:
+            if workspace_id in self._engines:
+                engine = self._engines.pop(workspace_id)
+                await engine.dispose()
+                logger.info(f"关闭工作空间 {workspace_id} 的数据库引擎成功")
+
+            # 同时清理会话工厂
+            if workspace_id in self._session_factories:
+                del self._session_factories[workspace_id]
 
     async def close_all_engines(self):
         """关闭所有工作空间数据库引擎"""
-        for workspace_id in list(self._engines.keys()):
-            await self.close_engine(workspace_id)
-        logger.info("关闭所有工作空间数据库引擎成功")
+        async with self._lock:
+            # 创建副本以避免在迭代时修改字典
+            workspace_ids = list(self._engines.keys())
+
+            for workspace_id in workspace_ids:
+                await self.close_engine(workspace_id)
+
+            logger.info("关闭所有工作空间数据库引擎成功")
+
+    def is_engine_exists(self, workspace_id: str) -> bool:
+        """
+        检查工作空间数据库引擎是否存在
+
+        :param workspace_id: 工作空间ID
+        :return: 是否存在
+        """
+        return workspace_id in self._engines
+
+    async def test_connection(self, workspace_id: str, database_url: str) -> bool:
+        """
+        测试工作空间数据库连接
+
+        :param workspace_id: 工作空间ID
+        :param database_url: 数据库URL
+        :return: 连接是否成功
+        """
+        try:
+            engine = self.get_engine(workspace_id, database_url)
+            async with engine.connect() as conn:
+                await conn.execute("SELECT 1")
+            return True
+        except Exception as e:
+            logger.error(f"工作空间 {workspace_id} 数据库连接测试失败: {e}")
+            return False
+
+    async def get_engine_stats(self) -> Dict[str, Any]:
+        """
+        获取所有引擎的统计信息
+
+        :return: 引擎统计信息
+        """
+        async with self._lock:
+            return {
+                "total_engines": len(self._engines),
+                "workspace_ids": list(self._engines.keys()),
+                "engines_info": {
+                    workspace_id: {
+                        "has_session_factory": workspace_id in self._session_factories
+                    }
+                    for workspace_id in self._engines.keys()
+                }
+            }
 
 
-
+# 全局实例
 workspace_db_manager = WorkspaceDatabaseManager()
-
-
-
-
-
-
-
-

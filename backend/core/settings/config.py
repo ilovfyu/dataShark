@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     space_prefix: str = "space_session:"
 
 
+    in_cluster: bool = True
+
+
     model_config = SettingsConfigDict(
         env_file_encoding="utf-8",
         case_sensitive=False,

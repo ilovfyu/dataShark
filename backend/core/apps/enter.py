@@ -2,14 +2,15 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from backend.api.router import main_apirouter
-from backend.core.db.redis import redis_client
+from backend.core.framework.redis import redis_client
 from backend.core.logs.loguru_config import Logger
 from backend.core.settings.config import get_settings
-from backend.core.db.mysql import db
+from backend.core.framework.mysql import db
 from backend.middleware.log_middleware import LoguruMiddleware
 from backend.middleware.request_id_middleware import RequestIDMiddleware
 from backend.common.exception_handler import configure_exception_handlers
 import backend.models
+from backend.core.container import init_kubernetes_client
 
 confi = get_settings()
 logx = Logger.get_logger()
@@ -36,6 +37,14 @@ async def register_init(app: FastAPI):
     except Exception as e:
         logx.info(f"❌ Failed to create db tables: {e}")
         raise
+
+
+    # try:
+    #     init_kubernetes_client(in_cluster=False)
+    # except Exception as e:
+    #     logx.info(f"❌ Failed to create kubernetes client: {e}")
+    #     raise
+
     await asyncio.sleep(1)
     yield
     logx.info("🚀 Application shutting down......")
