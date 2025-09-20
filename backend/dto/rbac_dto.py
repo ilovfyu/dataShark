@@ -1,7 +1,8 @@
 from datetime import datetime
 from pydantic import Field
 from backend.constants.model_constant import UserStatusEnum, RoleTypeEnum, RoleStatusEnum, PermissionActionEnum, \
-    PermissionTypeEnum, PermissionStatusEnum, HttpMethodEnum, PermissionResourceEnum
+    PermissionTypeEnum, PermissionStatusEnum, HttpMethodEnum, PermissionResourceEnum, \
+    PermissionGroupStatusEnum
 from backend.dto.base import BasePageReqDto, BaseSchema
 from typing import Optional, List
 
@@ -136,3 +137,74 @@ class QueryPermissionListReqDto(BasePageReqDto):
 
 class DeletePermissionReqDto(BaseSchema):
     ids: List[int] = Field(..., description="权限id")
+
+
+
+
+class PermissionGroupCreateReqDto(BaseSchema):
+    name: str = Field(..., description="权限组名称")
+    description: Optional[str] = Field(None, description="权限组描述")
+    status: Optional[PermissionGroupStatusEnum] = Field(None, description="权限组状态")
+
+
+
+
+class PermissionGroupUpdateReqDto(BaseSchema):
+    code: str = Field(..., description="权限组id")
+    name: Optional[str] = Field(None, description="权限组名称")
+    description: Optional[str] = Field(None, description="权限组描述")
+    status: Optional[PermissionGroupStatusEnum] = Field(None, description="权限组状态")
+    sort_order: Optional[int] = Field(None, description="排序")
+
+
+
+
+class PermissionGroupDeleteReqDto(BaseSchema):
+    code: str = Field(..., description="权限组编码")
+
+
+
+
+class PermissionGroupListReqDto(BasePageReqDto):
+    status: Optional[PermissionGroupStatusEnum] = Field(None, description="权限组状态")
+
+
+
+
+class UserRoleAssignReqDto(BaseSchema):
+    guid: str = Field(..., description="用户guid")
+    role_ids: List[int] = Field(..., description="角色id列表")
+
+
+
+class RolePermissionAssignReqDto(BaseSchema):
+    role_id: int = Field(..., description="角色id")
+    permission_ids: List[int] = Field(..., description="权限id列表")
+
+
+
+class RolePermissionGroupAssignReqDto(BaseSchema):
+    role_id: int = Field(..., description="角色id")
+    group_codes: List[str] = Field(..., description="权限组code列表")
+
+
+
+class GroupPermissionAssignReqDto(BaseSchema):
+    group_code: str = Field(..., description="权限组code")
+    permission_ids: List[int] = Field(..., description="权限id列表")
+
+
+
+class UserWorkspaceAssignReqDto(BaseSchema):
+    user_id: str = Field(..., description="用户id")
+    workspace_ids: List[int] = Field(..., description="工作空间id列表")
+
+
+
+class UserWorkspaceRoleAssignReqDto(BaseSchema):
+    user_id: str = Field(..., description="用户id")
+    workspace_id: int = Field(..., description="工作空间id")
+    role_ids: List[int] = Field(..., description="角色id列表")
+
+
+

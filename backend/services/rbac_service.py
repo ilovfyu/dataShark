@@ -8,12 +8,16 @@ from backend.constants.model_constant import UserStatusEnum
 from backend.dto.rbac_dto import (
     UserCreateReqDto, LoginReqDto, UserUpdateReqDto, UserQueryListReqDto, UserStatusReqDto, UserChangePasswordReqDto,
     UserDeleteReqDto, RoleCreateReqDto, RoleUpdateReqDto, RoleDeleteReqDto, RoleListReqDto, CreatePermissionReqDto,
-    UpdatePermissionReqDto, QueryPermissionListReqDto, DeletePermissionReqDto
+    UpdatePermissionReqDto, QueryPermissionListReqDto, DeletePermissionReqDto, PermissionGroupCreateReqDto,
+    PermissionGroupDeleteReqDto, PermissionGroupListReqDto, PermissionGroupUpdateReqDto, RolePermissionAssignReqDto,
+    UserRoleAssignReqDto, RolePermissionGroupAssignReqDto, GroupPermissionAssignReqDto, UserWorkspaceAssignReqDto,
+    UserWorkspaceRoleAssignReqDto
 )
 from backend.models import (
-    User, Role, UserRole, UserWorkspace, RolePermission, Permission, GroupPermissions
+    User, Role, UserRole, UserWorkspace, RolePermission, Permission, GroupPermissions, PermissionGroup
 )
 from backend.dto.base import NoneDataUnionResp, BasePageRespDto
+from backend.models.rbac import RolePermissionGroup
 from backend.utils.jwt_utils import get_password_hash, verify_password, create_access_token
 from backend.utils.model_utils import ModelConverter, GeneratorUtils
 
@@ -368,6 +372,10 @@ class RBACService:
             delete_role_permission_stmt = delete(RolePermission).where(RolePermission.role_id == req.id)
             await db.execute(delete_role_permission_stmt)
 
+
+            delete_role_permission_group_stmt = delete(RolePermissionGroup).where(RolePermissionGroup.role_id == req.id)
+            await db.execute(delete_role_permission_group_stmt)
+
             delete_user_workspace_stmt = delete(UserWorkspace).where(UserWorkspace.role_id == req.id)
             await db.execute(delete_user_workspace_stmt)
 
@@ -584,6 +592,228 @@ class RBACService:
 
 
 
+    async def permission_group_create(self, req: PermissionGroupCreateReqDto, db: AsyncSession):
+        try:
+            stmt = select(PermissionGroup).where(PermissionGroup.name == req.name)
+            result = await db.execute(stmt)
+            permission_group = result.scalar_one_or_none()
+            if permission_group:
+                raise BusinessException(
+                    message=f"权限组已存在",
+                    code=BussinessCode.EXIST_ERROR.code,
+                    status_code=ErrorCode.BAD_REQUEST,
+                )
+            group = PermissionGroup(
+                name=req.name,
+                description=req.description,
+                status=req.status,
+            )
+            db.add(group)
+            await db.commit()
+            return NoneDataUnionResp()
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"创建权限组失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def permission_group_delete(self, req: PermissionGroupDeleteReqDto, db: AsyncSession):
+        try:
+            ## combine
+            group_stmt = select(PermissionGroup).where(PermissionGroup.code == req.code)
+            group_result = await db.execute(group_stmt)
+            group = group_result.scalar_one_or_none()
+            if not group:
+                raise BusinessException(
+                    message="权限组不存在",
+                    code=BussinessCode.NOT_EXIST_ERROR.code,
+                    status_code=ErrorCode.BAD_REQUEST,
+                )
+            delete_group_permission_stmt = delete(GroupPermissions).where(GroupPermissions.group_code == group.code)
+            await db.execute(delete_group_permission_stmt)
+
+            await db.delete(group)
+            await db.commit()
+            return NoneDataUnionResp()
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"删除权限组失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def permission_group_list(self, req: PermissionGroupListReqDto, db: AsyncSession):
+        try:
+            stmt = select(PermissionGroup)
+            count_stmt = select(func.count()).select_from(PermissionGroup)
+
+            if req.status:
+                stmt = stmt.where(PermissionGroup.status == req.status)
+                count_stmt = count_stmt.where(PermissionGroup.status == req.status)
+
+            stmt = stmt.offset((req.page - 1) * req.page_size).limit(req.page_size)
+            result = await db.execute(stmt)
+            permission_groups = result.scalars().all()
+            count_result = await db.execute(count_stmt)
+            total = count_result.scalar_one()
+
+            permission_group_list = ModelConverter.to_dict_list(permission_groups)
+            print(permission_group_list)
+            return BasePageRespDto(
+                total=total,
+                data=permission_group_list,
+            )
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"查询权限组列表失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def permission_group_update(self, req: PermissionGroupUpdateReqDto, db: AsyncSession):
+        try:
+            group_stmt = select(PermissionGroup).where(PermissionGroup.code == req.code)
+            group_result = await db.execute(group_stmt)
+            group = group_result.scalar_one_or_none()
+            if not group:
+                raise BusinessException(
+                    message=f"权限组不存在",
+                    code=BussinessCode.NOT_EXIST_ERROR.code,
+                    status_code=ErrorCode.BAD_REQUEST,
+                )
+            model = ModelConverter.update_model_from_dto(group, req)
+            db.add(model)
+            await db.commit()
+            return NoneDataUnionResp()
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"更新权限组失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+    async def user_roles_assign(self, req: UserRoleAssignReqDto, db: AsyncSession):
+        try:
+            delete_stmt = select(UserRole).where(UserRole.user_id == req.guid)
+            delete_result = await db.execute(delete_stmt)
+            for user_role in delete_result.scalars().all():
+                await db.delete(user_role)
+            for role_id in req.role_ids:
+                user_role = UserRole(
+                    user_id=req.guid,
+                    role_id=role_id,
+                )
+                db.add(user_role)
+            await db.commit()
+            return NoneDataUnionResp()
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"分配用户角色失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def role_permission_assign(self, req: RolePermissionAssignReqDto, db: AsyncSession):
+        try:
+            delete_stmt = select(RolePermission).where(RolePermission.role_id == req.role_id)
+            delete_result = await db.execute(delete_stmt)
+            for role_perm in delete_result.scalars().all():
+                await db.delete(role_perm)
+
+            for permission_id in req.permission_ids:
+                role_perm = RolePermission(
+                    role_id=req.role_id,
+                    permission_id=permission_id,
+                )
+                await db.add(role_perm)
+            await db.commit()
+            return NoneDataUnionResp()
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"分配角色权限失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def role_permission_group_assign(self, req: RolePermissionGroupAssignReqDto, db: AsyncSession):
+        try:
+            pass
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"分配角色权限组失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def group_permission_assign(self, req: GroupPermissionAssignReqDto, db: AsyncSession):
+        try:
+            pass
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"分配权限组权限失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+    async def user_workspace_assign(self, req: UserWorkspaceAssignReqDto, db: AsyncSession):
+        try:
+            pass
+        except BusinessException:
+            raise
+        except Exception as e:
+            raise BusinessException(
+                message=f"分配用户工作空间失败, {str(e)}",
+                code=BussinessCode.BUSSINESS_NORMAL_ERROR.code,
+                status_code=ErrorCode.INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+
+
+    async def assign_user_workspace_role(self, req: UserWorkspaceRoleAssignReqDto, db: AsyncSession):
+        pass
 
 
 rbac_service = RBACService()

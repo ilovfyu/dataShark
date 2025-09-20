@@ -1,4 +1,4 @@
-# backend/models/workspace.py
+# backend/models/workspace_dto.py
 import uuid
 from sqlalchemy import Column, String, Text, Boolean, BigInteger, Enum
 from backend.models.base import IBaseModel

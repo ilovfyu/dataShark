@@ -4,13 +4,15 @@ from fastapi import APIRouter, Request, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.common.resp_schema import RespCall
 from backend.constants.model_constant import UserStatusEnum, RoleStatusEnum, RoleTypeEnum, PermissionStatusEnum, \
-    PermissionActionEnum, HttpMethodEnum, PermissionResourceEnum
-from backend.core.db.mysql import get_db
+    PermissionActionEnum, HttpMethodEnum, PermissionResourceEnum, PermissionGroupStatusEnum
+from backend.core.framework.mysql import get_db
 from backend.decorators.auth_decorator import require_auth, require_superuser
 from backend.dto.rbac_dto import (
     UserCreateReqDto, LoginReqDto, UserUpdateReqDto, UserQueryListReqDto, UserStatusReqDto, UserChangePasswordReqDto,
     UserDeleteReqDto, RoleCreateReqDto, RoleUpdateReqDto, RoleDeleteReqDto, RoleListReqDto, CreatePermissionReqDto,
-    UpdatePermissionReqDto, QueryPermissionListReqDto, DeletePermissionReqDto
+    UpdatePermissionReqDto, QueryPermissionListReqDto, DeletePermissionReqDto, PermissionGroupCreateReqDto,
+    PermissionGroupUpdateReqDto, PermissionGroupDeleteReqDto, PermissionGroupListReqDto, UserRoleAssignReqDto,
+    RolePermissionAssignReqDto, RolePermissionGroupAssignReqDto, UserWorkspaceAssignReqDto, GroupPermissionAssignReqDto
 )
 from backend.services.rbac_service import rbac_service
 from backend.utils.message_utils import MessageUtils
@@ -308,22 +310,100 @@ async def delete_permission_api(request: Request, data: DeletePermissionReqDto, 
 
 
 
+@rbac_router.post("/permission/group", summary="创建权限组")
+@require_auth()
+async def permission_group_create_api(request: Request, req: PermissionGroupCreateReqDto, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await rbac_service.permission_group_create(req, db)
+        return RespCall.success(
+            data=result,
+            request=request,
+        )
+    except Exception as err:
+        raise err
 
-async def permission_group_create_api(request: Request, data: PermissionGroupCreateReqDto, db: AsyncSession = Depends(get_db)):
+
+@rbac_router.put("/permission/group", summary="更新权限组")
+@require_auth()
+async def permission_group_update_api(request: Request, req: PermissionGroupUpdateReqDto, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await rbac_service.permission_group_update(req, db)
+        return RespCall.success(
+            data=result,
+            request=request,
+        )
+    except Exception as err:
+        raise err
+
+
+@rbac_router.delete("/permission/group", summary="删除权限组")
+@require_auth()
+async def permission_group_delete_api(request: Request, req: PermissionGroupDeleteReqDto, db: AsyncSession = Depends(get_db)):
+    try:
+        result = await rbac_service.permission_group_delete(req, db)
+        return RespCall.success(
+            data=result,
+            request=request,
+        )
+    except Exception as err:
+        raise err
+
+
+@rbac_router.get("/permission/group", summary="权限组列表")
+@require_auth()
+async def permission_group_list_api(
+        request: Request,
+        status: Optional[PermissionGroupStatusEnum] = Query(PermissionGroupStatusEnum.ACTIVE, description="状态"),
+        db: AsyncSession = Depends(get_db)
+):
+    req = PermissionGroupListReqDto(
+        status=status,
+    )
+    try:
+        result = await rbac_service.permission_group_list(req, db)
+        return RespCall.success(
+            data=result,
+            request=request,
+        )
+    except Exception as err:
+        raise err
+
+
+
+
+async def assign_user_role_api(request: Request, req: UserRoleAssignReqDto, db: AsyncSession = Depends(get_db)):
     pass
 
 
 
 
-async def permission_group_update_api(request: Request, data: PermissionGroupUpdateReqDto, db: AsyncSession = Depends(get_db)):
+
+async def assign_role_permission_api(request: Request, req: RolePermissionAssignReqDto, db: AsyncSession = Depends(get_db)):
     pass
 
 
 
-async def permission_group_delete_api(request: Request, data: PermissionGroupDeleteReqDto, db: AsyncSession = Depends(get_db)):
+
+async def assign_role_permission_group_api(request: Request, req: RolePermissionGroupAssignReqDto, db: AsyncSession = Depends(get_db)):
     pass
 
 
 
-async def permission_group_list_api(request: Request, data: PermissionGroupListReqDto, db: AsyncSession = Depends(get_db)):
+
+
+async def assign_user_workspace_api(request: Request, req: UserWorkspaceAssignReqDto, db: AsyncSession = Depends(get_db)):
+    pass
+
+
+
+
+
+async def assign_permission_group_api(request: Request, req: GroupPermissionAssignReqDto, db: AsyncSession = Depends(get_db)):
+    pass
+
+
+
+
+
+async def assign_user_workspace_role_api(request: Request, req: UserRoleAssignReqDto, db: AsyncSession = Depends(get_db)):
     pass

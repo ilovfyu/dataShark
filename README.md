@@ -36,6 +36,7 @@
 30. 版本管理 
 31. 弹性伸缩
 32. catalog 数据目录  latest todo
+33. 
 
   
 strcuture: litestar async api
@@ -60,6 +61,8 @@ dingding, feishu集成
 orm: sqlalchemy
 
 
+
+引擎, 运行环境, session
 
 ```angular2html
 project/
@@ -172,3 +175,18 @@ project/
 ```
 
 错误码设计
+
+
+
+
+
+backend/
+├── core/
+│   └── container/
+│       ├── __init__.py
+│       ├── client.py              # Kubernetes 客户端封装
+│       ├── operator.py            # Kubernetes Operator 核心逻辑
+│       ├── controller.py          # 控制器实现
+│       ├── crd.py                 # 自定义资源定义
+│       ├── manager.py             # Operator 管理器
+│       └── utils.py               # 工具函数

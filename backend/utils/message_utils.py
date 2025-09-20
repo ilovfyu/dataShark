@@ -1,3 +1,5 @@
+import json
+from typing import Any
 from fastapi import Request
 
 
@@ -24,3 +26,10 @@ class MessageUtils:
             return request.client.host
 
         return None
+
+
+    @staticmethod
+    def json_format(jsonstr: str) -> Any:
+        return json.loads(jsonstr)
+
+

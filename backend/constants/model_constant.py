@@ -53,7 +53,7 @@ class PermissionActionEnum(str, Enum):
 
 class PermissionStatusEnum(str, Enum):
     ACTIVE = "active"  # 启用
-    DISABLED = "disabled"  # 禁用
+    DISABLED = "inactive"  # 禁用
 
 
 
@@ -64,7 +64,7 @@ class WorkSpaceStatusEnum(str, Enum):
     ACTIVE = "active"
     DISABLED = "disabled"
     DELETED = "deleted"
-    UNACTIVE = "unactive"
+    UNACTIVE = "inactive"
 
 
 
@@ -88,3 +88,9 @@ class PermissionResourceEnum(str, Enum):
     WORKSPACE = "workspace"
     PERMISSION = "permission"
     COMMON = "common"
+
+
+
+class PermissionGroupStatusEnum(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"

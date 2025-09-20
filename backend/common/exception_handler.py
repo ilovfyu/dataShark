@@ -49,6 +49,28 @@ class ForbiddenException(BusinessException):
 
 
 
+# 认证异常
+class AuthException(BusinessException):
+    def __init__(self, message: str = "认证失败", detail: Optional[Any] = None):
+        super().__init__(
+            message=message,
+            code=BussinessCode.UNAUTHORIZED_ERROR.code,
+            status_code=ErrorCode.UNAUTHORIZED,
+            detail=detail
+        )
+
+
+
+class NotFoundException(BusinessException):
+    def __init__(self, message: str = "资源未找到", detail: Optional[Any] = None):
+        super().__init__(
+            message=message,
+            code=BussinessCode.RESOURCE_NOT_FOUND_ERROR.code,
+            status_code=ErrorCode.NOT_FOUND,
+            detail=detail
+        )
+
+
 class ExceptionHandler:
 
     @staticmethod
@@ -220,6 +242,30 @@ class ExceptionHandler:
             return JSONResponse(
                 status_code=ErrorCode.BAD_ENTITY,
                 content=response.to_dict()
+            )
+
+        @app.exception_handler(AuthException)
+        async def auth_exception_handler(request: Request, exc: AuthException):
+            request_id = getattr(request.state, "request_id", None)
+            logx.bind(request_id=request_id).warning(
+                f"AuthException: {exc.message} "
+                f"(Code: {exc.code}, Status: {exc.status_code}) "
+                f"Request: {request.method} {request.url.path} "
+                f"Request ID: {request_id}"
+            )
+            response = ErrorResponse(
+                code=exc.code,
+                message=exc.message,
+                detail=exc.detail,
+                request_id=request_id
+            )
+
+            # 添加WWW-Authenticate头
+            headers = {"WWW-Authenticate": "Bearer"}
+            return JSONResponse(
+                status_code=exc.status_code,
+                content=response.to_dict(),
+                headers=headers
             )
 
 
