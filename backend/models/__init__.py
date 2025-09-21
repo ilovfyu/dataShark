@@ -11,7 +11,8 @@ from backend.models.rbac import (
 )
 from backend.models.workspace import (
     Workspace,
-    UserWorkspace
+    UserWorkspace,
+    ResourceGroup
 )
 
 MODELS = [
@@ -19,7 +20,7 @@ MODELS = [
     Permission, Workspace, UserWorkspace,
     GroupPermissions,
     PermissionGroup,
-    RolePermissionGroup
+    RolePermissionGroup, ResourceGroup
 ]
 
 

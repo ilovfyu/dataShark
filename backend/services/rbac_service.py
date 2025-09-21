@@ -669,7 +669,6 @@ class RBACService:
             total = count_result.scalar_one()
 
             permission_group_list = ModelConverter.to_dict_list(permission_groups)
-            print(permission_group_list)
             return BasePageRespDto(
                 total=total,
                 data=permission_group_list,
