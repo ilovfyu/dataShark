@@ -1,4 +1,5 @@
-from typing import Type, TypeVar, List, Optional, Any, Dict
+import json
+from typing import Type, TypeVar, List, Optional, Any, Dict, Callable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import DeclarativeMeta
 from pydantic import BaseModel
@@ -320,8 +321,83 @@ class ModelConverter:
 
         return model_instance
 
+    @staticmethod
+    def dict_to_json_str(data: Dict[str, Any], indent: Optional[int] = None, ensure_ascii: bool = False) -> str:
+        """
+        将字典转换为JSON字符串
+        :param data: 字典数据
+        :param indent: 缩进空格数，None表示不格式化
+        :param ensure_ascii: 是否确保ASCII编码
+        :return: JSON字符串
+        """
+        try:
+            return json.dumps(data, indent=indent, ensure_ascii=ensure_ascii, default=str)
+        except Exception as e:
+            raise ValueError(f"字典转换为JSON字符串失败: {str(e)}")
 
+    @staticmethod
+    def model_to_json_str(
+            model_instance: M,
+            exclude_fields: Optional[List[str]] = None,
+            indent: Optional[int] = None
+    ) -> str:
+        """
+        将SQLAlchemy模型实例直接转换为JSON字符串
+        :param model_instance: SQLAlchemy模型实例
+        :param exclude_fields: 要排除的字段列表
+        :param indent: 缩进空格数，None表示不格式化
+        :return: JSON字符串
+        """
+        if model_instance is None:
+            return "{}"
 
+        model_dict = ModelConverter.model_to_dict(model_instance, exclude_fields)
+        return ModelConverter.dict_to_json_str(model_dict, indent=indent)
+
+    @staticmethod
+    def update_model_from_dto_with_transformers(
+            model_instance: M,
+            dto_instance: T,
+            field_transformers: Optional[Dict[str, Callable[[Any], Any]]] = None,
+            exclude_fields: Optional[List[str]] = None
+    ) -> M:
+        """
+        通过Pydantic DTO实例更新现有的SQLAlchemy模型实例，并支持字段转换
+        :param model_instance: 现有的SQLAlchemy模型实例
+        :param dto_instance: Pydantic DTO实例
+        :param field_transformers: 字段转换器字典，key为字段名，value为转换函数
+        :param exclude_fields: 要排除的字段列表
+        :return: 更新后的SQLAlchemy模型实例
+        """
+        if model_instance is None:
+            raise ValueError("Model instance cannot be None")
+
+        if dto_instance is None:
+            return model_instance
+
+        # 将DTO转换为字典，只包含设置了值的字段
+        dto_dict = dto_instance.model_dump(exclude_unset=True)
+
+        # 处理字段排除
+        if exclude_fields:
+            filtered_dict = {k: v for k, v in dto_dict.items() if k not in exclude_fields}
+        else:
+            filtered_dict = dto_dict
+
+        # 更新模型实例的属性，并应用字段转换器
+        for field, value in filtered_dict.items():
+            if hasattr(model_instance, field):
+                # 如果有字段转换器，则应用转换
+                if field_transformers and field in field_transformers:
+                    try:
+                        value = field_transformers[field](value)
+                    except Exception as e:
+                        # 如果转换失败，记录日志并使用原始值
+                        import logging
+                        logging.warning(f"Failed to transform field {field} with value {value}: {e}")
+                setattr(model_instance, field, value)
+
+        return model_instance
 
 
 class GeneratorUtils:

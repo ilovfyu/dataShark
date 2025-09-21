@@ -1,4 +1,5 @@
 import json
+import uuid
 from typing import Any
 from fastapi import Request
 
@@ -28,8 +29,12 @@ class MessageUtils:
         return None
 
 
+
     @staticmethod
-    def json_format(jsonstr: str) -> Any:
-        return json.loads(jsonstr)
+    def code_format(prefix: str) -> str:
+        uuid_str = str(uuid.uuid4())[:8]
+        return f"{prefix}-{uuid_str}"
+
+
 
 

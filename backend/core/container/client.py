@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, List
 from kubernetes import client, config
+from kubernetes.client import V1Namespace
 from kubernetes.client.rest import ApiException
 from backend.core.logs.loguru_config import Logger
 
@@ -377,6 +378,75 @@ class KubernetesClient:
         except ApiException as e:
             logger.error(f"Failed to list custom resources: {e}")
             raise
+
+    def update_namespace(self, name: str, labels: Optional[Dict[str, str]] = None,
+                         annotations: Optional[Dict[str, str]] = None) -> client.V1Namespace:
+        """
+        更新命名空间，直接替换标签和注解
+
+        Args:
+            name: 命名空间名称
+            labels: 标签
+                - 传入 None 时，不修改现有标签
+                - 传入空字典 {} 时，删除所有现有标签
+                - 传入具体标签时，直接替换所有现有标签
+            annotations: 注解
+                - 传入 None 时，不修改现有注解
+                - 传入空字典 {} 时，删除所有现有注解
+                - 传入具体注解时，直接替换所有现有注解
+
+        Returns:
+            V1Namespace 对象
+        """
+        ## 清除现有注解 todo: 无法直接覆盖注解
+
+        try:
+            update_model = {
+                'metadata': {
+                    'labels': None,
+                },
+                'name': name
+            }
+            self.core_v1_api.patch_namespace(name=name, body=update_model)
+            # 构建要更新的元数据
+            metadata = client.V1ObjectMeta()
+            if labels is not None:
+                metadata.labels = labels
+                metadata.name = name
+            if annotations is not None:
+                metadata.annotations = annotations
+                metadata.name = name
+
+            # 创建命名空间对象用于更新
+            namespace = client.V1Namespace(
+                metadata=metadata
+            )
+
+            # 如果没有需要更新的内容，直接返回现有的命名空间
+            if not metadata.labels and not metadata.annotations:
+                result = self.core_v1_api.read_namespace(name=name)
+                logger.info(f"No updates needed for namespace {name}, returning existing namespace")
+                return result
+
+            # 使用 patch 方法更新命名空间
+            result = self.core_v1_api.patch_namespace(
+                name=name,
+                body=namespace
+            )
+            logger.info(f"Namespace {name} updated successfully. Labels: {labels}, Annotations: {annotations}")
+            return result
+        except ApiException as e:
+            logger.error(f"Failed to update namespace {name}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error while updating namespace {name}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error while updating namespace {name}: {e}")
+            raise
+
+
+
 
 
 # 全局客户端实例
